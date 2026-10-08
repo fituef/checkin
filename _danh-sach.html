@@ -257,25 +257,6 @@ function fmtTime(t) {
   return isNaN(d) ? "" : d.toLocaleString("vi-VN", { hour12:false, hour:"2-digit", minute:"2-digit", day:"2-digit", month:"2-digit" });
 }
 
-/* Ảnh Drive: thử lần lượt nhiều dạng link, hết cách thì chạy onFail */
-function driveId(u) {
-  const s = String(u || "");
-  const m = s.match(/[?&]id=([-\w]{20,})/) || s.match(/\/d\/([-\w]{20,})/) || s.match(/^([-\w]{25,})$/);
-  return m ? m[1] : "";
-}
-function setPhoto(img, url, size, onFail) {
-  const id = driveId(url);
-  const list = id ? [
-    "https://lh3.googleusercontent.com/d/" + id + "=w" + size,
-    "https://drive.google.com/thumbnail?id=" + id + "&sz=w" + size,
-    "https://drive.google.com/uc?export=view&id=" + id
-  ] : [url];
-  let i = 0;
-  img.referrerPolicy = "no-referrer";
-  img.onerror = () => { if (++i < list.length) img.src = list[i]; else { img.onerror = null; if (onFail) onFail(); } };
-  img.src = list[0];
-}
-
 function makeItem(r) {
   const li = document.createElement("li"); li.className = "item";
 
@@ -284,14 +265,10 @@ function makeItem(r) {
     av = document.createElement("button"); av.type = "button"; av.className = "avatar";
     av.style.padding = "0"; av.setAttribute("aria-label", "Xem ảnh của " + r.name);
     const img = document.createElement("img");
-    img.alt = ""; img.loading = "lazy";
+    img.src = r.photo; img.alt = ""; img.loading = "lazy";
     img.style.cssText = "width:100%;height:100%;object-fit:cover;border-radius:8px;display:block";
     av.appendChild(img);
     av.style.transform = "none"; img.style.transform = "scaleX(-1)";
-    setPhoto(img, r.photo, 200, () => {
-      av.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>';
-      av.className = "avatar none"; av.onclick = null; av.title = "Không tải được ảnh";
-    });
     av.onclick = () => openViewer(r);
   } else {
     av = document.createElement("div"); av.className = "avatar none";
@@ -349,7 +326,7 @@ function render() {
 
 /* ---------- Xem ảnh ---------- */
 function openViewer(r) {
-  setPhoto($("viewImg"), r.photo, 600);
+  $("viewImg").src = r.photo;
   $("viewCap").innerHTML = "";
   $("viewCap").append(r.name);
   const s = document.createElement("small"); s.textContent = [r.mssv, r.cls].filter(Boolean).join(" · ");
@@ -385,22 +362,16 @@ async function load(silent) {
       const url = SCRIPT_URL + "?action=list&s=" + encodeURIComponent(session);
       const res = await fetch(url);
       const raw = await res.text();
-      if (params.has("debug")) {
-        $("errBox").textContent = "DEBUG · HTTP " + res.status + " · " + url + "\n\n" + raw.slice(0, 1500);
-        $("errBox").style.whiteSpace = "pre-wrap"; $("errBox").style.wordBreak = "break-all"; $("errBox").hidden = false;
-      }
       try { data = JSON.parse(raw); }
       catch (e) { throw new Error("Máy chủ trả về dữ liệu không hợp lệ. Kiểm tra Apps Script đã có hàm doGet và được triển khai phiên bản mới."); }
       if (data && data.ok === false) throw new Error(data.message || "Không tải được danh sách.");
-      if (!Array.isArray(data) && !Array.isArray(data.records) && !Array.isArray(data.list))
-        throw new Error("Backend chưa hỗ trợ action=list (không thấy trường records). Cần thêm hàm doGet vào Apps Script và triển khai phiên bản mới.");
     }
     records = normalize(data);
     render();
     $("updated").textContent = "Cập nhật lúc " + new Date().toLocaleTimeString("vi-VN", { hour12:false });
   } catch (err) {
     console.error(err);
-    $("errBox").textContent = (err.message || "Không kết nối được máy chủ.") + (params.has("debug") ? "\n\n" + $("errBox").textContent : "");
+    $("errBox").textContent = err.message || "Không kết nối được máy chủ.";
     $("errBox").hidden = false;
     if (!records.length) $("content").textContent = "";
   } finally {
