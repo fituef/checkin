@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Điểm danh</title>
+<style>
+  :root { --bg:#f4f6fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --primary:#2563eb; --ok:#16a34a; --err:#dc2626; --border:#d1d5db; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#111827; --card:#1f2937; --text:#f3f4f6; --muted:#9ca3af; --border:#374151; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .card { max-width:460px; margin:0 auto; background:var(--card); border-radius:16px; padding:20px; box-shadow:0 4px 18px rgba(0,0,0,.08); }
+  h1 { font-size:1.35rem; margin:0 0 4px; }
+  .sub { color:var(--muted); font-size:.9rem; margin-bottom:16px; }
+  label { display:block; font-weight:600; font-size:.9rem; margin:14px 0 6px; }
+  input[type=text] { width:100%; padding:12px; font-size:1rem; border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text); }
+  input:focus { outline:2px solid var(--primary); border-color:transparent; }
+  .cam { position:relative; background:#000; border-radius:12px; overflow:hidden; aspect-ratio:3/4; display:none; }
+  .cam video, .cam img { width:100%; height:100%; object-fit:cover; display:block; }
+  video.mirror { transform:scaleX(-1); }
+  button { width:100%; padding:13px; font-size:1rem; font-weight:600; border:0; border-radius:10px; cursor:pointer; margin-top:10px; background:var(--primary); color:#fff; }
+  button.secondary { background:transparent; color:var(--primary); border:1px solid var(--primary); }
+  button:disabled { opacity:.55; cursor:not-allowed; }
+  .msg { margin-top:14px; padding:12px; border-radius:10px; font-size:.95rem; display:none; }
+  .msg.ok { display:block; background:rgba(22,163,74,.12); color:var(--ok); }
+  .msg.err { display:block; background:rgba(220,38,38,.12); color:var(--err); }
+  .session { display:inline-block; background:rgba(37,99,235,.12); color:var(--primary); padding:2px 10px; border-radius:99px; font-size:.8rem; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📋 Điểm danh</h1>
+  <div class="sub">Buổi: <span class="session" id="sessionLabel">—</span></div>
+
+  <form id="form" onsubmit="return false;">
+    <label for="mssv">Mã số sinh viên</label>
+    <input type="text" id="mssv" inputmode="numeric" autocomplete="off" required>
+
+    <label for="name">Họ và tên</label>
+    <input type="text" id="name" autocomplete="name" required>
+
+    <label for="cls">Lớp</label>
+    <input type="text" id="cls" autocomplete="off">
+
+    <label>Ảnh minh chứng (selfie)</label>
+    <div class="cam" id="camBox">
+      <video id="video" class="mirror" autoplay playsinline muted></video>
+      <img id="preview" alt="Ảnh đã chụp" style="display:none">
+    </div>
+    <button type="button" class="secondary" id="btnOpen">📷 Mở camera</button>
+    <button type="button" id="btnShot" style="display:none">Chụp ảnh</button>
+    <button type="button" class="secondary" id="btnRetake" style="display:none">Chụp lại</button>
+
+    <button type="button" id="btnSubmit">Gửi điểm danh</button>
+    <div class="msg" id="msg"></div>
+  </form>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+/* ========= CẤU HÌNH ========= */
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjllETATDsouPwFqCdODR7jWnLAOZ0sncP6wbC5PnpsbeZnrP92eKf2us3pxwntMAd/exec";
+const MAX_SIZE = 720;   // cạnh dài tối đa của ảnh (px)
+const QUALITY  = 0.7;   // chất lượng JPEG
+/* ============================ */
+
+const $ = id => document.getElementById(id);
+const params  = new URLSearchParams(location.search);
+const session = params.get("s") || "";
+$("sessionLabel").textContent = session || "Chưa có mã buổi";
+
+let stream = null, photoData = "";
+
+function showMsg(text, type) { const m = $("msg"); m.textContent = text; m.className = "msg " + type; }
+
+// Nhớ thông tin sinh viên cho các buổi sau
+try {
+  const saved = JSON.parse(localStorage.getItem("sv") || "{}");
+  $("mssv").value = saved.mssv || ""; $("name").value = saved.name || ""; $("cls").value = saved.cls || "";
+} catch (e) {}
+
+$("btnOpen").onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+    $("video").srcObject = stream;
+    $("camBox").style.display = "block";
+    $("video").style.display = "block"; $("preview").style.display = "none";
+    $("btnOpen").style.display = "none"; $("btnShot").style.display = "block";
+  } catch (err) {
+    showMsg("Không mở được camera. Hãy cho phép quyền camera trong trình duyệt rồi thử lại.", "err");
+  }
+};
+
+function stopCam() { if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; } }
+
+$("btnShot").onclick = () => {
+  const v = $("video"), c = $("canvas");
+  const scale = Math.min(1, MAX_SIZE / Math.max(v.videoWidth, v.videoHeight));
+  c.width = v.videoWidth * scale; c.height = v.videoHeight * scale;
+  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+  photoData = c.toDataURL("image/jpeg", QUALITY);
+  $("preview").src = photoData;
+  $("video").style.display = "none"; $("preview").style.display = "block";
+  stopCam();
+  $("btnShot").style.display = "none"; $("btnRetake").style.display = "block";
+};
+
+$("btnRetake").onclick = () => { photoData = ""; $("btnRetake").style.display = "none"; $("btnOpen").click(); };
+
+$("btnSubmit").onclick = async () => {
+  const mssv = $("mssv").value.trim(), name = $("name").value.trim(), cls = $("cls").value.trim();
+  if (!session)  return showMsg("Thiếu mã buổi học. Hãy quét lại mã QR.", "err");
+  if (!mssv || !name) return showMsg("Vui lòng nhập MSSV và họ tên.", "err");
+  if (!photoData) return showMsg("Vui lòng chụp ảnh minh chứng.", "err");
+  if (SCRIPT_URL.startsWith("DÁN")) return showMsg("Chưa cấu hình SCRIPT_URL.", "err");
+
+  $("btnSubmit").disabled = true; $("btnSubmit").textContent = "Đang gửi...";
+  try {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" }, // tránh preflight CORS
+      body: JSON.stringify({ session, mssv, name, cls, photo: photoData })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      localStorage.setItem("sv", JSON.stringify({ mssv, name, cls }));
+      showMsg("✅ " + data.message, "ok");
+      $("btnSubmit").textContent = "Đã điểm danh";
+      return;
+    }
+    showMsg("⚠️ " + data.message, "err");
+  } catch (err) {
+    showMsg("Lỗi kết nối, vui lòng thử lại.", "err");
+  }
+  $("btnSubmit").disabled = false; $("btnSubmit").textContent = "Gửi điểm danh";
+};
+</script>
+</body>
+</html>
