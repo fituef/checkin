@@ -169,7 +169,7 @@
 <main>
   <!-- FORM -->
   <form class="panel" id="form" novalidate onsubmit="return false;">
-    <div class="banner info" id="deadlineBanner" hidden>Hạn điểm danh: <b id="deadlineText"></b> <span id="countdown"></span></div>
+    <div class="banner info" id="deadlineBanner">Hạn điểm danh: <b>20:00, 08/10/2026</b> <span id="countdown"></span></div>
     <div class="banner warn" id="noSession" hidden>Liên kết thiếu mã buổi học. Hãy quét lại mã QR do giảng viên cung cấp.</div>
 
     <fieldset>
@@ -250,8 +250,7 @@
 <script>
 /* ========= CẤU HÌNH ========= */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxBpVZDj6cU2oJsCAi51Qz2mj8fbLdLA9XYN1avZdmwqejsQnMeaj3iHdlUrmkRAIM/exec";
-let deadline = null;    // hạn điểm danh của buổi học này, lấy từ máy chủ (giảng viên đặt trong trang admin)
-let clockOffset = 0;    // chênh lệch giữa giờ máy chủ và giờ điện thoại, để đếm ngược chính xác
+const DEADLINE = new Date("2026-10-08T20:00:00+07:00"); // hạn điểm danh
 const MAX_SIZE = 720;   // cạnh dài tối đa của ảnh (px)
 const QUALITY  = 0.7;   // chất lượng JPEG
 /* ============================ */
@@ -267,44 +266,19 @@ function tick() {
   $("clockTime").textContent = n.toLocaleTimeString("vi-VN", { hour12:false });
   $("clockDate").textContent = n.toLocaleDateString("vi-VN", { weekday:"long", day:"2-digit", month:"2-digit", year:"numeric" });
 }
-const z2 = n => String(n).padStart(2, "0");
-const fmtDeadline = d => z2(d.getHours()) + ":" + z2(d.getMinutes()) + ", " + z2(d.getDate()) + "/" + z2(d.getMonth() + 1) + "/" + d.getFullYear();
-function isClosed() { return !!deadline && deadline - (Date.now() + clockOffset) <= 0; }
 function checkDeadline() {
-  if (!deadline) return;
-  const left = deadline - (Date.now() + clockOffset);
+  const left = DEADLINE - new Date();
   const b = $("deadlineBanner");
   if (left <= 0) {
     b.className = "banner closed";
-    b.textContent = "Đã hết hạn điểm danh (" + fmtDeadline(deadline) + ").";
+    b.textContent = "Đã hết hạn điểm danh (20:00, 08/10/2026).";
     $("btnSubmit").disabled = true;
     return;
   }
   const h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
-  const c = $("countdown");
-  if (c) c.textContent = left < 86400000 ? "· còn " + (h ? h + " giờ " : "") + m + " phút" : "";
+  $("countdown").textContent = left < 86400000 ? "· còn " + (h ? h + " giờ " : "") + m + " phút" : "";
 }
-
-/* Lấy hạn điểm danh của buổi học từ máy chủ */
-async function loadSessionInfo() {
-  if (!session) return;
-  try {
-    const res = await fetch(SCRIPT_URL + "?action=info&s=" + encodeURIComponent(session));
-    const data = JSON.parse(await res.text());
-    if (!data || !data.ok) return;
-    if (data.now) clockOffset = Number(data.now) - Date.now();
-    if (data.deadline) {
-      deadline = new Date(Number(data.deadline));
-      const b = $("deadlineBanner");
-      b.className = "banner info";
-      b.innerHTML = 'Hạn điểm danh: <b id="deadlineText"></b> <span id="countdown"></span>';
-      $("deadlineText").textContent = fmtDeadline(deadline);
-      b.hidden = false;
-      checkDeadline();
-    }
-  } catch (e) { console.error("Không lấy được thông tin buổi học:", e); }
-}
-tick(); checkDeadline(); loadSessionInfo();
+tick(); checkDeadline();
 setInterval(() => { tick(); checkDeadline(); }, 1000);
 
 /* Nhớ thông tin sinh viên */
@@ -389,7 +363,7 @@ function validate() {
 
 
 
-function resetSubmit() { $("btnSubmit").disabled = isClosed(); $("btnSubmit").textContent = "Gửi điểm danh"; }
+function resetSubmit() { $("btnSubmit").disabled = DEADLINE - new Date() <= 0; $("btnSubmit").textContent = "Gửi điểm danh"; }
 
 $("btnSubmit").onclick = async () => {
   clearMsg();

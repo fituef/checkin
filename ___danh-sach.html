@@ -184,7 +184,7 @@
         <p class="sub">Phân loại theo kết quả điểm danh</p>
         <div class="nav"><a href="admin.html">← Quản trị / tạo mã QR</a><a href="danh-sach.html">Chọn buổi khác</a><button type="button" class="logout" id="btnLogout" hidden>Đăng xuất</button></div>
       </div>
-      <div class="session"><small>Buổi học</small><b id="sessionLabel">—</b><small id="dlLabel" hidden></small></div>
+      <div class="session"><small>Buổi học</small><b id="sessionLabel">—</b></div>
     </div>
     <div class="stats" aria-label="Thống kê">
       <div class="stat"><b id="s-all">0</b><small>Tổng</small></div>
@@ -238,7 +238,7 @@
 <script>
 /* ========= CẤU HÌNH ========= */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxBpVZDj6cU2oJsCAi51Qz2mj8fbLdLA9XYN1avZdmwqejsQnMeaj3iHdlUrmkRAIM/exec";
-let deadline = null;                                    // hạn điểm danh của buổi học, lấy từ máy chủ
+const DEADLINE = new Date("2026-10-08T20:00:00+07:00"); // phải trùng với index.html
 const REFRESH_MS = 30000;                               // tự tải lại mỗi 30 giây
 const STORE_KEY = "checkin_codes_v1";
 const PW_KEY = "checkin_admin_pw";                       // lưu tạm trong tab, tự mất khi đóng tab                   // danh sách mã do trang admin.html lưu
@@ -337,20 +337,11 @@ function resultOf(r, absent) {
   if (/tre|muon|late/.test(v)) return "late";
   if (/co mat|dung|present|ok/.test(v)) return "present";
   const t = new Date(r.time || r.timestamp);
-  if (deadline && !isNaN(t) && t > deadline) return "late";   // chưa có cột kết quả: so với hạn điểm danh
+  if (!isNaN(t) && t > DEADLINE) return "late";   // chưa có cột kết quả: so với hạn điểm danh
   return "present";
 }
 
 function normalize(data) {
-  if (!Array.isArray(data) && "deadline" in data) {
-    deadline = data.deadline ? new Date(Number(data.deadline)) : null;
-    const dl = $("dlLabel");
-    if (deadline) {
-      const z = n => String(n).padStart(2, "0");
-      dl.textContent = "Hạn " + z(deadline.getHours()) + ":" + z(deadline.getMinutes()) + ", " + z(deadline.getDate()) + "/" + z(deadline.getMonth() + 1);
-      dl.hidden = false;
-    } else dl.hidden = true;
-  }
   const arr = Array.isArray(data) ? data : (data.records || data.list || []);
   const abs = Array.isArray(data) ? [] : (data.absent || []);
   const out = arr.map(r => ({
@@ -475,10 +466,8 @@ $("viewer").addEventListener("click", e => { if (e.target === $("viewer")) $("vi
 
 /* ---------- Tải dữ liệu ---------- */
 function sampleData() {
-  const base = Date.now();
-  const t = h => new Date(base + h * 3600000).toISOString();
+  const t = h => new Date(DEADLINE.getTime() + h * 3600000).toISOString();
   return {
-    deadline: base,
     records: [
       { mssv:"20211234", name:"Nguyễn Văn An",  cls:"CNTT01", time:t(-1.5) },
       { mssv:"20211235", name:"Trần Thị Bình",  cls:"CNTT01", time:t(-0.5) },

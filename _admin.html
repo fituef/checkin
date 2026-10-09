@@ -57,7 +57,7 @@
   label { display:block; font-size:.88rem; font-weight:500; margin:0 0 5px; }
   .hint { font-weight:400; color:var(--muted); }
   .field { margin-bottom:14px; }
-  input[type="text"], input[type="date"], input[type="datetime-local"] {
+  input[type="text"], input[type="date"] {
     width:100%; padding:11px 14px; font:inherit; color:var(--ink);
     background:var(--field); border:1px solid var(--line); border-radius:10px;
   }
@@ -132,7 +132,6 @@
     background:var(--field); border:1px solid var(--line); border-radius:10px;
   }
   .login input[type="password"]:focus-visible { outline-offset:0; border-color:var(--navy-2); }
-  .quick { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .row { display:flex; gap:8px; }
   .row input { flex:1; min-width:0; }
   .pwbox {
@@ -198,16 +197,6 @@
         <input type="text" id="title" placeholder="Ví dụ: Lập trình Web - Nhóm 1" maxlength="80" autocomplete="off">
       </div>
       <div class="field">
-        <label for="dl">Hạn điểm danh <span class="hint">(để trống: không giới hạn)</span></label>
-        <input type="datetime-local" id="dl">
-        <div class="quick" id="dlQuick">
-          <button type="button" class="btn sm" data-m="15">+15 phút</button>
-          <button type="button" class="btn sm" data-m="30">+30 phút</button>
-          <button type="button" class="btn sm" data-m="60">+1 giờ</button>
-          <button type="button" class="btn sm" data-m="120">+2 giờ</button>
-        </div>
-      </div>
-      <div class="field">
         <label for="spw">Mật khẩu xem danh sách của buổi này <span class="hint">(để trống: chỉ mật khẩu quản trị xem được)</span></label>
         <div class="row">
           <input type="text" id="spw" maxlength="40" autocomplete="off" placeholder="Ít nhất 4 ký tự">
@@ -243,20 +232,6 @@
       <p class="qr-title" id="qrCode"></p>
       <p class="qr-sub" id="qrName"></p>
       <div class="linkbox" id="qrLink"></div>
-      <div class="pwbox" id="dlBox">
-        <span id="dlLabel"></span>
-        <b id="dlVal" style="font-size:1.05rem;letter-spacing:0" hidden></b>
-        <div class="row" style="margin-top:8px">
-          <input type="datetime-local" id="dl2" aria-label="Hạn điểm danh mới">
-          <button type="button" class="btn sm" id="btnSaveDl">Lưu hạn</button>
-        </div>
-        <div class="pwactions">
-          <button type="button" class="btn sm" id="btnPlus15">Gia hạn +15 phút</button>
-          <button type="button" class="btn sm" id="btnCloseNow">Đóng điểm danh ngay</button>
-          <button type="button" class="btn sm" id="btnNoDl">Bỏ giới hạn</button>
-        </div>
-        <small>Hạn này được máy chủ kiểm tra: sau giờ này sinh viên không gửi điểm danh được nữa.</small>
-      </div>
       <div class="pwbox" id="pwBox">
         <span id="pwLabel"></span>
         <b id="pwVal" hidden></b>
@@ -366,10 +341,6 @@ function showRecord(rec, msg) {
   const has = !!rec.spw;
   $("pwLabel").textContent = has ? "Mật khẩu xem danh sách buổi này:" : "Chưa đặt mật khẩu riêng. Chỉ mật khẩu quản trị xem được danh sách buổi này.";
   $("pwVal").textContent = has ? rec.spw : ""; $("pwVal").hidden = !has; $("btnCopyPw").hidden = !has;
-  $("dlLabel").textContent = rec.dl ? "Hạn điểm danh:" : "Buổi này không giới hạn thời gian điểm danh.";
-  $("dlVal").textContent = rec.dl ? fmtDateTime(rec.dl) + (rec.dl < Date.now() ? " (đã hết hạn)" : "") : "";
-  $("dlVal").hidden = !rec.dl;
-  $("dl2").value = rec.dl ? toLocalInput(rec.dl) : "";
   $("okBox").textContent = msg || ""; $("okBox").hidden = !msg;
   $("qrEmpty").hidden = true; $("qrBox").hidden = false;
   renderHistory();
@@ -393,20 +364,15 @@ $("btnCreate").onclick = async () => {
   const spw = $("spw").value.trim();
   if (spw && spw.length < 4) { showErr("Mật khẩu của buổi học cần ít nhất 4 ký tự (hoặc để trống)."); $("spw").focus(); return; }
 
-  const dlMs = fromLocalInput($("dl").value);
-  if ($("dl").value && !dlMs) { showErr("Hạn điểm danh không hợp lệ."); $("dl").focus(); return; }
-  if (dlMs && dlMs <= Date.now()) { showErr("Hạn điểm danh phải sau thời điểm hiện tại."); $("dl").focus(); return; }
-
   const btn = $("btnCreate"); btn.disabled = true; btn.textContent = "Đang tạo…";
-  try { await register(code, { spw: spw, dl: dlMs ? String(dlMs) : "" }); }
+  try { await register(code, spw); }
   catch (e) { if (e.message !== "auth") showErr(e.message || "Không kết nối được máy chủ."); return; }
   finally { btn.disabled = false; btn.textContent = "Tạo mã"; }
 
-  const rec = { code, cls: c, date: d, title: $("title").value.trim(), url: checkinUrl(code), spw, dl: dlMs || 0, created: Date.now() };
+  const rec = { code, cls: c, date: d, title: $("title").value.trim(), url: checkinUrl(code), spw, created: Date.now() };
   list.unshift(rec);
   saveStore(list);
- $("spw").value = randomSuffix(6);
-  $("dl").value = toLocalInput(Date.now() + 30 * 60000);
+  $("spw").value = randomSuffix(6);
   showRecord(rec, "Đã tạo mã " + code + ".");
   updatePreview();
 };
@@ -500,8 +466,8 @@ async function api(params) {
   try { return JSON.parse(await res.text()); }
   catch (e) { throw new Error("Máy chủ trả về dữ liệu không hợp lệ. Kiểm tra Apps Script đã có action=create và đã triển khai phiên bản mới."); }
 }
-async function register(code, fields) {
-  const data = await api(Object.assign({ action: "create", s: code, pw: master }, fields));
+async function register(code, spw) {
+  const data = await api({ action: "create", s: code, pw: master, spw: spw });
   if (data && data.code === "auth") { showLogin(data.message || "Phiên đăng nhập đã hết hạn."); throw new Error("auth"); }
   if (!data || !data.ok) throw new Error((data && data.message) || "Không đăng ký được mã trên máy chủ.");
 }
@@ -516,7 +482,6 @@ function showLogin(msg) {
 function enterApp() {
   $("loginWrap").hidden = true; $("app").hidden = false; $("btnLogout").hidden = false;
   if (!$("spw").value) $("spw").value = randomSuffix(6);
-  if (!$("dl").value) $("dl").value = toLocalInput(Date.now() + 30 * 60000);
 }
 async function doLogin() {
   const v = $("mpw").value;
@@ -554,46 +519,12 @@ $("btnNewPw").onclick = async () => {
   if (spw === "-") spw = ""; else if (!spw) spw = randomSuffix(6);
   if (spw && spw.length < 4) { showErr("Mật khẩu cần ít nhất 4 ký tự."); return; }
   showErr("");
-  try { await register(current.code, { spw: spw }); }
+  try { await register(current.code, spw); }
   catch (e) { if (e.message !== "auth") showErr(e.message || "Không kết nối được máy chủ."); return; }
   const list = loadStore(), r = list.find(x => x.code === current.code);
   if (r) { r.spw = spw; saveStore(list); }
   showRecord(r || Object.assign({}, current, { spw }), "Đã cập nhật mật khẩu của buổi " + current.code + ".");
 };
-
-/* ---------- Hạn điểm danh ---------- */
-const z2 = n => String(n).padStart(2, "0");
-function toLocalInput(ms) {
-  const d = new Date(ms);
-  return d.getFullYear() + "-" + z2(d.getMonth() + 1) + "-" + z2(d.getDate()) + "T" + z2(d.getHours()) + ":" + z2(d.getMinutes());
-}
-function fromLocalInput(v) { if (!v) return 0; const t = new Date(v).getTime(); return isNaN(t) ? 0 : t; }
-function fmtDateTime(ms) {
-  const d = new Date(ms);
-  return z2(d.getHours()) + ":" + z2(d.getMinutes()) + ", " + z2(d.getDate()) + "/" + z2(d.getMonth() + 1) + "/" + d.getFullYear();
-}
-document.querySelectorAll("#dlQuick button").forEach(b => {
-  b.onclick = () => { $("dl").value = toLocalInput(Date.now() + Number(b.dataset.m) * 60000); };
-});
-
-async function setDeadline(ms) {          // ms = 0: bỏ giới hạn
-  if (!current) return;
-  showErr("");
-  try { await register(current.code, { dl: ms ? String(ms) : "" }); }
-  catch (e) { if (e.message !== "auth") showErr(e.message || "Không kết nối được máy chủ."); return; }
-  const list = loadStore(), r = list.find(x => x.code === current.code);
-  if (r) { r.dl = ms; saveStore(list); }
-  showRecord(r || Object.assign({}, current, { dl: ms }),
-    ms ? (ms <= Date.now() ? "Đã đóng điểm danh buổi " + current.code + "." : "Đã cập nhật hạn điểm danh.") : "Đã bỏ giới hạn thời gian điểm danh.");
-}
-$("btnSaveDl").onclick = () => {
-  const ms = fromLocalInput($("dl2").value);
-  if (!ms) { showErr("Vui lòng chọn ngày giờ hạn điểm danh."); return; }
-  setDeadline(ms);
-};
-$("btnPlus15").onclick = () => setDeadline(Math.max(Date.now(), current && current.dl ? current.dl : 0) + 15 * 60000);
-$("btnCloseNow").onclick = () => { if (confirm("Đóng điểm danh buổi này ngay bây giờ?")) setDeadline(Date.now()); };
-$("btnNoDl").onclick = () => setDeadline(0);
 
 if (typeof qrcode === "undefined") showErr("Không tải được thư viện tạo mã QR. Kiểm tra kết nối mạng rồi tải lại trang.");
 renderHistory();
