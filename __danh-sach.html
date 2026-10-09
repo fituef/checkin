@@ -42,19 +42,6 @@
   .top-row { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
   .top h1 { margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-.01em; }
   .top .sub { margin:2px 0 0; color:rgba(255,255,255,.72); font-size:.9rem; }
-  .nav { margin-top:10px; display:flex; flex-wrap:wrap; gap:4px 16px; }
-  .nav a { color:rgba(255,255,255,.88); font-size:.88rem; text-decoration:underline; text-underline-offset:3px; }
-  .nav a:hover { color:#fff; }
-  .picker h2 { margin:0 0 4px; font-size:1.05rem; font-weight:600; }
-  .picker p { margin:0 0 12px; color:var(--muted); font-size:.9rem; }
-  .picker ul { list-style:none; margin:0 0 12px; padding:0; display:grid; gap:8px; }
-  .picker a.pick {
-    display:block; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
-    background:var(--field); color:var(--ink); text-decoration:none;
-  }
-  .picker a.pick:hover { border-color:var(--navy-2); }
-  .picker a.pick b { display:block; font-weight:600; overflow-wrap:anywhere; }
-  .picker a.pick small { color:var(--muted); font-size:.82rem; }
   .session {
     flex-shrink:0; max-width:48%; text-align:right;
     background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22);
@@ -153,22 +140,6 @@
     border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--ink);
   }
 
-  .login h2 { margin:0 0 4px; font-size:1.05rem; font-weight:600; }
-  .login p { margin:0 0 14px; color:var(--muted); font-size:.9rem; }
-  .login input {
-    width:100%; padding:12px 14px; font:inherit; color:var(--ink); margin-bottom:12px;
-    background:var(--field); border:1px solid var(--line); border-radius:10px;
-  }
-  .login input:focus-visible { outline-offset:0; border-color:var(--navy-2); }
-  .login .go {
-    width:100%; min-height:46px; font:inherit; font-weight:600; border-radius:10px; cursor:pointer;
-    border:1px solid var(--navy); background:var(--navy); color:#fff;
-  }
-  .login .go:disabled { opacity:.6; cursor:wait; }
-  @media (prefers-color-scheme: dark) { .login .go { background:var(--navy-2); border-color:var(--navy-2); } }
-  .logout { background:none; border:0; padding:0; font:inherit; font-size:.88rem; color:rgba(255,255,255,.88); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
-  .logout:hover { color:#fff; }
-
   [hidden] { display:none !important; }
   @media (max-width:380px) { .badge { display:none; } }
   @media (prefers-reduced-motion: reduce) { .icon-btn.spin svg { animation:none; } }
@@ -182,7 +153,6 @@
       <div>
         <h1>Danh sách điểm danh</h1>
         <p class="sub">Phân loại theo kết quả điểm danh</p>
-        <div class="nav"><a href="admin.html">← Quản trị / tạo mã QR</a><a href="danh-sach.html">Chọn buổi khác</a><button type="button" class="logout" id="btnLogout" hidden>Đăng xuất</button></div>
       </div>
       <div class="session"><small>Buổi học</small><b id="sessionLabel">—</b></div>
     </div>
@@ -196,16 +166,8 @@
 </header>
 
 <main>
-  <section class="panel login" id="loginPanel" hidden>
-    <h2>Đăng nhập để xem danh sách</h2>
-    <p id="loginHint"></p>
-    <div class="banner err" id="loginErr" hidden></div>
-    <input type="password" id="pw" placeholder="Mật khẩu" autocomplete="current-password" aria-label="Mật khẩu">
-    <button type="button" class="go" id="btnLogin">Đăng nhập</button>
-  </section>
-
-  <section class="panel" id="mainPanel" hidden>
-    <div class="picker" id="picker" hidden></div>
+  <section class="panel">
+    <div class="banner warn" id="noSession" hidden>Liên kết thiếu mã buổi học. Hãy mở trang với đường dẫn dạng <b>danh-sach.html?s=MÃ_BUỔI</b>.</div>
     <div class="banner err" id="errBox" hidden></div>
 
     <div class="toolbar">
@@ -240,8 +202,6 @@
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxBpVZDj6cU2oJsCAi51Qz2mj8fbLdLA9XYN1avZdmwqejsQnMeaj3iHdlUrmkRAIM/exec";
 const DEADLINE = new Date("2026-10-08T20:00:00+07:00"); // phải trùng với index.html
 const REFRESH_MS = 30000;                               // tự tải lại mỗi 30 giây
-const STORE_KEY = "checkin_codes_v1";
-const PW_KEY = "checkin_admin_pw";                       // lưu tạm trong tab, tự mất khi đóng tab                   // danh sách mã do trang admin.html lưu
 /* ============================ */
 
 const $ = id => document.getElementById(id);
@@ -250,72 +210,7 @@ const session = params.get("s") || "";
 const demo = params.has("demo"); // ?demo=1 để xem thử giao diện với dữ liệu mẫu
 
 $("sessionLabel").textContent = session || (demo ? "Dữ liệu mẫu" : "Chưa xác định");
-
-/* ---------- Đăng nhập ---------- */
-let pw = "";
-try { pw = sessionStorage.getItem(PW_KEY) || ""; } catch (e) {}
-
-function showLogin(msg) {
-  pw = ""; try { sessionStorage.removeItem(PW_KEY); } catch (e) {}
-  $("mainPanel").hidden = true; $("loginPanel").hidden = false; $("btnLogout").hidden = true;
-  $("loginHint").textContent = session
-    ? "Nhập mật khẩu của buổi học " + session + " (hoặc mật khẩu quản trị) để xem danh sách."
-    : "Nhập mật khẩu quản trị để chọn buổi học.";
-  $("loginErr").textContent = msg || ""; $("loginErr").hidden = !msg;
-  $("pw").value = ""; $("btnLogin").disabled = false; $("btnLogin").textContent = "Đăng nhập";
-  $("pw").focus();
-}
-function enter() {
-  $("loginPanel").hidden = true; $("mainPanel").hidden = false; $("btnLogout").hidden = demo;
-  if (!session && !demo) renderPicker(); else load();
-}
-async function doLogin() {
-  const v = $("pw").value;
-  if (!v) { $("loginErr").textContent = "Vui lòng nhập mật khẩu."; $("loginErr").hidden = false; return; }
-  $("btnLogin").disabled = true; $("btnLogin").textContent = "Đang kiểm tra…"; $("loginErr").hidden = true;
-  try {
-    const res = await fetch(SCRIPT_URL + "?action=auth&s=" + encodeURIComponent(session) + "&pw=" + encodeURIComponent(v));
-    const data = JSON.parse(await res.text());
-    if (data && data.ok) {
-      pw = v; try { sessionStorage.setItem(PW_KEY, v); } catch (e) {}
-      enter();
-    } else showLogin((data && data.message) || "Mật khẩu không đúng.");
-  } catch (e) {
-    showLogin("Không kết nối được máy chủ. Backend cần có hàm kiểm tra mật khẩu (action=auth) và đã được triển khai phiên bản mới.");
-  }
-}
-$("btnLogin").onclick = doLogin;
-$("pw").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
-$("btnLogout").onclick = () => { records = []; showLogin(""); };
-
-/* Chưa có ?s=: liệt kê các mã đã tạo ở trang quản trị để chọn */
-function renderPicker() {
-  let list = [];
-  try { list = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) {}
-  document.querySelector(".toolbar").hidden = true;
-  $("tabs").hidden = true;
-  const box = $("picker"); box.hidden = false; box.textContent = "";
-  const h = document.createElement("h2"); h.textContent = "Chọn buổi học";
-  const p = document.createElement("p");
-  box.append(h, p);
-  if (!list.length) {
-    p.textContent = "Chưa có mã nào được tạo trên trình duyệt này. Hãy tạo mã ở trang quản trị, hoặc mở trang với đường dẫn dạng danh-sach.html?s=MÃ_BUỔI.";
-    const a = document.createElement("a"); a.href = "admin.html"; a.textContent = "Đến trang quản trị →";
-    box.appendChild(a); return;
-  }
-  p.textContent = "Các mã bạn đã tạo ở trang quản trị:";
-  const ul = document.createElement("ul");
-  list.forEach(r => {
-    const li = document.createElement("li");
-    const a = document.createElement("a"); a.className = "pick"; a.href = "danh-sach.html?s=" + encodeURIComponent(r.code);
-    const b = document.createElement("b"); b.textContent = r.code;
-    const sm = document.createElement("small");
-    const d = String(r.date || "").split("-");
-    sm.textContent = [r.title, d.length === 3 ? d[2] + "/" + d[1] + "/" + d[0] : ""].filter(Boolean).join(" · ");
-    a.append(b, sm); li.appendChild(a); ul.appendChild(li);
-  });
-  box.appendChild(ul);
-}
+if (!session && !demo) $("noSession").hidden = false;
 
 const GROUPS = [
   { key:"present", label:"Có mặt" },
@@ -369,7 +264,7 @@ function driveId(u) {
   return m ? m[1] : "";
 }
 function setPhoto(img, url, size, onFail) {
-  const id = String(url || "").startsWith("data:") ? "" : driveId(url);
+  const id = driveId(url);
   const list = id ? [
     "https://lh3.googleusercontent.com/d/" + id + "=w" + size,
     "https://drive.google.com/thumbnail?id=" + id + "&sz=w" + size,
@@ -482,22 +377,20 @@ let loading = false;
 async function load(silent) {
   if (loading) return;
   if (!session && !demo) { $("content").textContent = ""; return; }
-  if (!pw && !demo) return;
   loading = true; $("btnReload").classList.add("spin"); $("errBox").hidden = true;
   try {
     let data;
     if (demo) data = sampleData();
     else {
-      const url = SCRIPT_URL + "?action=list&s=" + encodeURIComponent(session) + "&pw=" + encodeURIComponent(pw);
+      const url = SCRIPT_URL + "?action=list&s=" + encodeURIComponent(session);
       const res = await fetch(url);
       const raw = await res.text();
       if (params.has("debug")) {
-        $("errBox").textContent = "DEBUG · HTTP " + res.status + " · " + url.replace(/pw=[^&]*/, "pw=***") + "\n\n" + raw.slice(0, 1500);
+        $("errBox").textContent = "DEBUG · HTTP " + res.status + " · " + url + "\n\n" + raw.slice(0, 1500);
         $("errBox").style.whiteSpace = "pre-wrap"; $("errBox").style.wordBreak = "break-all"; $("errBox").hidden = false;
       }
       try { data = JSON.parse(raw); }
       catch (e) { throw new Error("Máy chủ trả về dữ liệu không hợp lệ. Kiểm tra Apps Script đã có hàm doGet và được triển khai phiên bản mới."); }
-      if (data && data.code === "auth") { loading = false; $("btnReload").classList.remove("spin"); showLogin(data.message || "Phiên đăng nhập không hợp lệ, vui lòng đăng nhập lại."); return; }
       if (data && data.ok === false) throw new Error(data.message || "Không tải được danh sách.");
       if (!Array.isArray(data) && !Array.isArray(data.records) && !Array.isArray(data.list))
         throw new Error("Backend chưa hỗ trợ action=list (không thấy trường records). Cần thêm hàm doGet vào Apps Script và triển khai phiên bản mới.");
@@ -525,8 +418,8 @@ $("tabs").addEventListener("click", e => {
   render();
 });
 
-if (demo || pw) enter(); else showLogin("");
-setInterval(() => { if (!document.hidden && !$("mainPanel").hidden) load(true); }, REFRESH_MS);
+load();
+setInterval(() => { if (!document.hidden) load(true); }, REFRESH_MS);
 </script>
 </body>
 </html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#16315c">
+<title>Quản trị điểm danh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:#16315c; --navy-2:#1f457f;
+    --bg:#eef1f6; --surface:#ffffff; --ink:#18212f; --muted:#5d6b7e;
+    --line:#d9dfe8; --field:#f8fafc;
+    --accent:#0d7a6f; --accent-soft:#e2f3f0;
+    --warn:#a35a00; --warn-soft:#fdf0dc;
+    --err:#b3261e; --err-soft:#fbe8e6;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0e1522; --surface:#172131; --ink:#eef2f8; --muted:#9aa9bd;
+      --line:#2a3850; --field:#101a29;
+      --navy:#0f2447; --navy-2:#2b5aa6;
+      --accent:#3cc2b2; --accent-soft:#12332f;
+      --warn:#f0b35a; --warn-soft:#3a2b12;
+      --err:#ff8a80; --err-soft:#3a1816;
+    }
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size:16px; line-height:1.5;
+  }
+  .top { background:var(--navy); color:#fff; padding:22px 20px 56px; }
+  .top-inner { max-width:960px; margin:0 auto; }
+  .top h1 { margin:0; font-size:1.5rem; font-weight:700; letter-spacing:-.01em; }
+  .top .sub { margin:2px 0 0; color:rgba(255,255,255,.72); font-size:.9rem; }
+  .navlink { display:inline-block; margin-top:10px; color:rgba(255,255,255,.88); font-size:.88rem; text-decoration:underline; text-underline-offset:3px; }
+  .navlink:hover { color:#fff; }
+
+  main {
+    max-width:960px; margin:-34px auto 0; padding:0 16px 40px;
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:16px; align-items:start;
+  }
+  @media (max-width:760px) { main { grid-template-columns:1fr; } }
+  .panel {
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; box-shadow:0 8px 24px rgba(22,49,92,.10);
+  }
+  .panel h2 { margin:0 0 14px; font-size:1.05rem; font-weight:600; }
+  .stack { display:grid; gap:16px; }
+
+  label { display:block; font-size:.88rem; font-weight:500; margin:0 0 5px; }
+  .hint { font-weight:400; color:var(--muted); }
+  .field { margin-bottom:14px; }
+  input[type="text"], input[type="date"] {
+    width:100%; padding:11px 14px; font:inherit; color:var(--ink);
+    background:var(--field); border:1px solid var(--line); border-radius:10px;
+  }
+  input::placeholder { color:var(--muted); opacity:.7; }
+  :focus-visible { outline:3px solid var(--navy-2); outline-offset:2px; }
+  input:focus-visible { outline-offset:0; border-color:var(--navy-2); }
+  .check { display:flex; gap:10px; align-items:flex-start; font-size:.9rem; margin:0 0 16px; cursor:pointer; }
+  .check input { margin-top:4px; width:18px; height:18px; flex-shrink:0; }
+  .check small { display:block; color:var(--muted); }
+
+  .preview {
+    background:var(--field); border:1px dashed var(--line); border-radius:10px;
+    padding:10px 14px; margin-bottom:16px; font-size:.88rem; color:var(--muted);
+  }
+  .preview b { display:block; color:var(--ink); font-size:1.05rem; letter-spacing:.02em; overflow-wrap:anywhere; }
+
+  .btn {
+    font:inherit; font-weight:600; min-height:46px; padding:0 18px; border-radius:10px;
+    border:1px solid var(--line); background:transparent; color:var(--ink); cursor:pointer;
+  }
+  .btn.primary { width:100%; background:var(--navy); border-color:var(--navy); color:#fff; }
+  .btn.primary:hover { background:var(--navy-2); border-color:var(--navy-2); }
+  .btn.sm { min-height:38px; padding:0 14px; font-size:.88rem; }
+  @media (prefers-color-scheme: dark) { .btn.primary { background:var(--navy-2); border-color:var(--navy-2); } }
+
+  .banner { border-radius:10px; padding:12px 14px; font-size:.9rem; margin-bottom:14px; }
+  .banner.warn { background:var(--warn-soft); color:var(--warn); }
+  .banner.err { background:var(--err-soft); color:var(--err); }
+  .banner.ok { background:var(--accent-soft); color:var(--accent); }
+
+  /* ---------- Thẻ QR ---------- */
+  .qr-card { text-align:center; }
+  .qr-empty { color:var(--muted); padding:40px 10px; font-size:.92rem; }
+  .qr-wrap { background:#fff; border-radius:12px; padding:10px; display:inline-block; max-width:100%; border:1px solid var(--line); }
+  .qr-wrap canvas { display:block; width:min(320px, 100%); height:auto; }
+  .qr-title { margin:12px 0 0; font-size:1.2rem; font-weight:700; letter-spacing:.02em; overflow-wrap:anywhere; }
+  .qr-sub { margin:0; color:var(--muted); font-size:.88rem; }
+  .linkbox {
+    margin:12px 0 0; padding:9px 12px; background:var(--field); border:1px solid var(--line);
+    border-radius:10px; font-size:.8rem; color:var(--muted); word-break:break-all; text-align:left;
+  }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; justify-content:center; }
+  .actions a.btn { display:inline-flex; align-items:center; text-decoration:none; }
+
+  /* ---------- Lịch sử ---------- */
+  .hist { list-style:none; margin:0; padding:0; display:grid; gap:8px; }
+  .hist li {
+    display:flex; align-items:center; gap:10px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:12px; background:var(--field);
+  }
+  .hist .code { flex:1; min-width:0; background:none; border:0; padding:0; text-align:left; font:inherit; color:var(--ink); cursor:pointer; }
+  .hist .code b { display:block; font-weight:600; overflow-wrap:anywhere; }
+  .hist .code small { color:var(--muted); font-size:.8rem; }
+  .hist a.btn { display:inline-flex; align-items:center; text-decoration:none; flex-shrink:0; }
+  .hist .del {
+    flex-shrink:0; width:36px; height:36px; border-radius:8px; border:1px solid var(--line);
+    background:transparent; color:var(--muted); cursor:pointer; font-size:1.1rem; line-height:1;
+  }
+  .hist .del:hover { color:var(--err); border-color:var(--err); }
+  .hist li.active { border-color:var(--navy-2); }
+  .empty { color:var(--muted); font-size:.9rem; padding:8px 0; }
+  .histhead { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .histhead h2 { margin:0; }
+  .linkbtn { background:none; border:0; color:var(--muted); font:inherit; font-size:.85rem; cursor:pointer; text-decoration:underline; padding:6px; }
+
+  button.navlink { background:none; border:0; padding:0; font:inherit; font-size:.88rem; cursor:pointer; margin-left:16px; }
+  .loginwrap { max-width:460px; margin:-34px auto 0; padding:0 16px 40px; }
+  .login h2 { margin:0 0 4px; font-size:1.05rem; font-weight:600; }
+  .login p { margin:0 0 14px; color:var(--muted); font-size:.9rem; }
+  .login input[type="password"] {
+    width:100%; padding:12px 14px; font:inherit; color:var(--ink); margin-bottom:12px;
+    background:var(--field); border:1px solid var(--line); border-radius:10px;
+  }
+  .login input[type="password"]:focus-visible { outline-offset:0; border-color:var(--navy-2); }
+  .row { display:flex; gap:8px; }
+  .row input { flex:1; min-width:0; }
+  .pwbox {
+    margin:12px 0 0; padding:12px 14px; border:1px solid var(--line); border-radius:10px;
+    background:var(--field); text-align:left; font-size:.9rem;
+  }
+  .pwbox b { display:block; font-size:1.3rem; letter-spacing:.12em; margin:2px 0 6px; overflow-wrap:anywhere; }
+  .pwbox small { display:block; color:var(--muted); margin-top:8px; font-size:.8rem; }
+  .pwbox .pwactions { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+
+  [hidden] { display:none !important; }
+
+  /* ---------- In ---------- */
+  .print-sheet { display:none; }
+  @media print {
+    body { background:#fff; color:#000; }
+    .top, main { display:none !important; }
+    .print-sheet { display:block; text-align:center; padding:30px 20px; font-family:inherit; }
+    .print-sheet img { width:min(480px, 90%); height:auto; }
+    .print-sheet h1 { font-size:2rem; margin:10px 0 4px; }
+    .print-sheet p { margin:4px 0; color:#333; font-size:1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <h1>Quản trị điểm danh</h1>
+    <p class="sub">Tạo mã lớp, buổi học và mã QR cho sinh viên quét</p>
+    <a class="navlink" href="danh-sach.html">Xem danh sách điểm danh →</a><button type="button" class="navlink" id="btnLogout" hidden>Đăng xuất</button>
+  </div>
+</header>
+
+<div class="loginwrap" id="loginWrap" hidden>
+  <section class="panel login">
+    <h2>Đăng nhập quản trị</h2>
+    <p>Nhập mật khẩu quản trị để tạo mã và đặt mật khẩu cho từng buổi học.</p>
+    <div class="banner err" id="loginErr" hidden></div>
+    <input type="password" id="mpw" placeholder="Mật khẩu quản trị" autocomplete="current-password" aria-label="Mật khẩu quản trị">
+    <button type="button" class="btn primary" id="btnLogin">Đăng nhập</button>
+  </section>
+</div>
+
+<main id="app" hidden>
+  <div class="stack">
+    <section class="panel">
+      <h2>Tạo mã mới</h2>
+
+      <div class="banner warn" id="fileWarn" hidden>Bạn đang mở trang bằng <b>file://</b>. Mã QR sẽ chứa đường dẫn trên máy bạn nên điện thoại không quét được. Hãy mở trang qua địa chỉ web (ví dụ GitHub Pages).</div>
+      <div class="banner err" id="errBox" hidden></div>
+
+      <div class="field">
+        <label for="cls">Mã lớp / môn học</label>
+        <input type="text" id="cls" placeholder="Ví dụ: LTW" maxlength="20" autocomplete="off" autocapitalize="characters">
+      </div>
+      <div class="field">
+        <label for="date">Ngày học</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field">
+        <label for="title">Tên lớp <span class="hint">(không bắt buộc, hiện trên bản in)</span></label>
+        <input type="text" id="title" placeholder="Ví dụ: Lập trình Web - Nhóm 1" maxlength="80" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="spw">Mật khẩu xem danh sách của buổi này <span class="hint">(để trống: chỉ mật khẩu quản trị xem được)</span></label>
+        <div class="row">
+          <input type="text" id="spw" maxlength="40" autocomplete="off" placeholder="Ít nhất 4 ký tự">
+          <button type="button" class="btn sm" id="btnGenPw">Ngẫu nhiên</button>
+        </div>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="rand">
+        <span>Thêm đuôi ngẫu nhiên
+          <small>Mã khó đoán hơn, tránh người ngoài tự gõ đường dẫn để điểm danh.</small>
+        </span>
+      </label>
+
+      <div class="preview">Mã buổi học sẽ là<b id="preview">—</b></div>
+      <button type="button" class="btn primary" id="btnCreate">Tạo mã</button>
+    </section>
+
+    <section class="panel">
+      <div class="histhead">
+        <h2>Mã đã tạo</h2>
+        <button type="button" class="linkbtn" id="btnClear" hidden>Xóa tất cả</button>
+      </div>
+      <ul class="hist" id="hist"></ul>
+      <p class="empty" id="histEmpty">Chưa có mã nào. Danh sách này chỉ lưu trên trình duyệt của bạn.</p>
+    </section>
+  </div>
+
+  <section class="panel qr-card" aria-live="polite">
+    <div class="qr-empty" id="qrEmpty">Nhập thông tin rồi bấm <b>Tạo mã</b> để hiện mã QR.</div>
+    <div id="qrBox" hidden>
+      <div class="banner ok" id="okBox" hidden></div>
+      <div class="qr-wrap"><canvas id="qrCanvas" width="640" height="640" role="img" aria-label="Mã QR điểm danh"></canvas></div>
+      <p class="qr-title" id="qrCode"></p>
+      <p class="qr-sub" id="qrName"></p>
+      <div class="linkbox" id="qrLink"></div>
+      <div class="pwbox" id="pwBox">
+        <span id="pwLabel"></span>
+        <b id="pwVal" hidden></b>
+        <div class="pwactions">
+          <button type="button" class="btn sm" id="btnCopyPw" hidden>Sao chép mật khẩu</button>
+          <button type="button" class="btn sm" id="btnNewPw">Đổi mật khẩu</button>
+        </div>
+        <small>Mật khẩu này dành cho giảng viên xem danh sách. Nó không có trong mã QR, ảnh PNG hay bản in.</small>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn sm" id="btnCopy">Sao chép link</button>
+        <button type="button" class="btn sm" id="btnPng">Tải ảnh PNG</button>
+        <button type="button" class="btn sm" id="btnPrint">In mã QR</button>
+        <a class="btn sm" id="btnList" target="_blank" rel="noopener">Xem danh sách điểm danh</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="print-sheet" id="printSheet">
+  <h1 id="pTitle"></h1>
+  <p id="pSub"></p>
+  <img id="pImg" alt="Mã QR điểm danh">
+  <p>Quét mã QR để điểm danh</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+/* ========= CẤU HÌNH ========= */
+// Trang điểm danh và trang danh sách nằm cùng thư mục với admin.html.
+// Nếu đặt ở nơi khác, điền địa chỉ đầy đủ, ví dụ "https://fituef.github.io/checkin/index.html"
+const CHECKIN_PAGE = "index.html";
+const LIST_PAGE    = "danh-sach.html";
+const STORE_KEY    = "checkin_codes_v1";
+const SCRIPT_URL   = "https://script.google.com/macros/s/AKfycbxBpVZDj6cU2oJsCAi51Qz2mj8fbLdLA9XYN1avZdmwqejsQnMeaj3iHdlUrmkRAIM/exec";
+const MASTER_KEY   = "checkin_admin_pw";                 // lưu tạm trong tab, mất khi đóng tab
+/* ============================ */
+
+const $ = id => document.getElementById(id);
+const checkinBase = new URL(CHECKIN_PAGE, location.href);
+const listBase    = new URL(LIST_PAGE, location.href);
+
+if (location.protocol === "file:") $("fileWarn").hidden = false;
+
+/* ---------- Tiện ích ---------- */
+const plain = s => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+function cleanClass(s) {
+  return plain(s).toUpperCase().replace(/[^A-Z0-9_-]+/g, "").replace(/^[-_]+|[-_]+$/g, "");
+}
+function randomSuffix(n) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // bỏ ký tự dễ nhầm: I, O, 0, 1
+  const buf = new Uint32Array(n); crypto.getRandomValues(buf);
+  return Array.from(buf, v => chars[v % chars.length]).join("");
+}
+function todayStr() {
+  const d = new Date(), z = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate());
+}
+function fmtDate(iso) { const [y, m, d] = iso.split("-"); return d + "/" + m + "/" + y; }
+function showErr(msg) { $("errBox").textContent = msg; $("errBox").hidden = !msg; }
+
+function checkinUrl(code) { const u = new URL(checkinBase); u.searchParams.set("s", code); return u.href; }
+function listUrl(code)    { const u = new URL(listBase);    u.searchParams.set("s", code); return u.href; }
+
+/* ---------- Lưu trữ (localStorage) ---------- */
+function loadStore() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) { return []; } }
+function saveStore(a) { try { localStorage.setItem(STORE_KEY, JSON.stringify(a)); } catch (e) {} }
+
+/* ---------- Xem trước mã ---------- */
+$("date").value = todayStr();
+function currentCode(withRandom) {
+  const c = cleanClass($("cls").value), d = $("date").value;
+  if (!c || !d) return "";
+  return c + "-" + d + (withRandom ? "-" + withRandom : "");
+}
+function updatePreview() {
+  const base = currentCode("");
+  $("preview").textContent = base ? base + ($("rand").checked ? "-XXXX" : "") : "—";
+}
+["cls", "date", "rand"].forEach(id => $(id).addEventListener("input", updatePreview));
+$("cls").addEventListener("blur", () => { $("cls").value = cleanClass($("cls").value); updatePreview(); });
+updatePreview();
+
+/* ---------- Vẽ QR ---------- */
+function drawQR(text) {
+  const qr = qrcode(0, "M");
+  qr.addData(text); qr.make();
+  const canvas = $("qrCanvas"), ctx = canvas.getContext("2d");
+  const n = qr.getModuleCount(), quiet = 4, cell = Math.floor(canvas.width / (n + quiet * 2));
+  const size = cell * (n + quiet * 2);
+  canvas.width = canvas.height = size;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#000";
+  for (let r = 0; r < n; r++)
+    for (let c = 0; c < n; c++)
+      if (qr.isDark(r, c)) ctx.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+}
+
+let current = null; // bản ghi đang hiển thị
+function showRecord(rec, msg) {
+  current = rec;
+  drawQR(rec.url);
+  $("qrCode").textContent = rec.code;
+  $("qrName").textContent = [rec.title, fmtDate(rec.date)].filter(Boolean).join(" · ");
+  $("qrLink").textContent = rec.url;
+  $("btnList").href = listUrl(rec.code);
+  const has = !!rec.spw;
+  $("pwLabel").textContent = has ? "Mật khẩu xem danh sách buổi này:" : "Chưa đặt mật khẩu riêng. Chỉ mật khẩu quản trị xem được danh sách buổi này.";
+  $("pwVal").textContent = has ? rec.spw : ""; $("pwVal").hidden = !has; $("btnCopyPw").hidden = !has;
+  $("okBox").textContent = msg || ""; $("okBox").hidden = !msg;
+  $("qrEmpty").hidden = true; $("qrBox").hidden = false;
+  renderHistory();
+}
+
+/* ---------- Tạo mã ---------- */
+$("btnCreate").onclick = async () => {
+  showErr("");
+  const c = cleanClass($("cls").value), d = $("date").value;
+  if (!c) { showErr("Vui lòng nhập mã lớp (chỉ gồm chữ, số, dấu gạch)."); $("cls").focus(); return; }
+  if (!d) { showErr("Vui lòng chọn ngày học."); $("date").focus(); return; }
+  $("cls").value = c;
+
+  const list = loadStore();
+  const useRand = $("rand").checked;
+  const code = currentCode(useRand ? randomSuffix(4) : "");
+
+  const existing = list.find(r => r.code === code);
+  if (existing) { showRecord(existing, "Mã này đã được tạo trước đó, hiển thị lại mã QR."); return; }
+
+  const spw = $("spw").value.trim();
+  if (spw && spw.length < 4) { showErr("Mật khẩu của buổi học cần ít nhất 4 ký tự (hoặc để trống)."); $("spw").focus(); return; }
+
+  const btn = $("btnCreate"); btn.disabled = true; btn.textContent = "Đang tạo…";
+  try { await register(code, spw); }
+  catch (e) { if (e.message !== "auth") showErr(e.message || "Không kết nối được máy chủ."); return; }
+  finally { btn.disabled = false; btn.textContent = "Tạo mã"; }
+
+  const rec = { code, cls: c, date: d, title: $("title").value.trim(), url: checkinUrl(code), spw, created: Date.now() };
+  list.unshift(rec);
+  saveStore(list);
+  $("spw").value = randomSuffix(6);
+  showRecord(rec, "Đã tạo mã " + code + ".");
+  updatePreview();
+};
+["cls", "date", "title"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") $("btnCreate").click(); }));
+
+/* ---------- Lịch sử ---------- */
+function renderHistory() {
+  const list = loadStore(), ul = $("hist");
+  ul.textContent = "";
+  $("histEmpty").hidden = list.length > 0;
+  $("btnClear").hidden = list.length === 0;
+  list.forEach(rec => {
+    const li = document.createElement("li");
+    if (current && current.code === rec.code) li.className = "active";
+    const b = document.createElement("button"); b.type = "button"; b.className = "code";
+    const t = document.createElement("b"); t.textContent = rec.code;
+    const s = document.createElement("small"); s.textContent = [rec.title, fmtDate(rec.date)].filter(Boolean).join(" · ");
+    b.append(t, s);
+    b.onclick = () => showRecord(rec);
+    const del = document.createElement("button"); del.type = "button"; del.className = "del";
+    del.setAttribute("aria-label", "Xóa mã " + rec.code); del.textContent = "×";
+    del.onclick = () => {
+      if (!confirm("Xóa mã " + rec.code + " khỏi danh sách trên máy này?\n(Dữ liệu điểm danh đã gửi không bị xóa.)")) return;
+      saveStore(loadStore().filter(r => r.code !== rec.code));
+      if (current && current.code === rec.code) { current = null; $("qrBox").hidden = true; $("qrEmpty").hidden = false; }
+      renderHistory();
+    };
+    const lk = document.createElement("a"); lk.className = "btn sm"; lk.textContent = "Danh sách";
+    lk.href = listUrl(rec.code); lk.target = "_blank"; lk.rel = "noopener";
+    lk.setAttribute("aria-label", "Xem danh sách điểm danh của " + rec.code);
+    li.append(b, lk, del); ul.appendChild(li);
+  });
+}
+$("btnClear").onclick = () => {
+  if (!confirm("Xóa toàn bộ danh sách mã trên máy này?")) return;
+  saveStore([]); current = null; $("qrBox").hidden = true; $("qrEmpty").hidden = false; renderHistory();
+};
+
+/* ---------- Hành động ---------- */
+$("btnCopy").onclick = async () => {
+  if (!current) return;
+  try { await navigator.clipboard.writeText(current.url); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = current.url; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand("copy"); } catch (e2) {} ta.remove();
+  }
+  const b = $("btnCopy"), old = b.textContent; b.textContent = "Đã sao chép";
+  setTimeout(() => b.textContent = old, 1500);
+};
+
+// Ảnh PNG: QR kèm tiêu đề để dễ nhận biết khi in hoặc chèn vào slide
+function composePng() {
+  const qr = $("qrCanvas"), pad = 40, head = 110, foot = 80;
+  const c = document.createElement("canvas");
+  c.width = qr.width + pad * 2; c.height = qr.height + head + foot;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = "#16315c"; x.textAlign = "center";
+  x.font = "700 44px 'Be Vietnam Pro', Arial, sans-serif";
+  x.fillText(current.code, c.width / 2, 60, c.width - 40);
+  x.fillStyle = "#444"; x.font = "400 26px 'Be Vietnam Pro', Arial, sans-serif";
+  x.fillText([current.title, fmtDate(current.date)].filter(Boolean).join(" · "), c.width / 2, 98, c.width - 40);
+  x.drawImage(qr, pad, head);
+  x.fillStyle = "#444"; x.font = "500 28px 'Be Vietnam Pro', Arial, sans-serif";
+  x.fillText("Quét mã QR để điểm danh", c.width / 2, head + qr.height + 50);
+  return c;
+}
+$("btnPng").onclick = () => {
+  if (!current) return;
+  const a = document.createElement("a");
+  a.href = composePng().toDataURL("image/png");
+  a.download = "QR-" + current.code + ".png";
+  document.body.appendChild(a); a.click(); a.remove();
+};
+$("btnPrint").onclick = () => {
+  if (!current) return;
+  $("pTitle").textContent = current.code;
+  $("pSub").textContent = [current.title, fmtDate(current.date)].filter(Boolean).join(" · ");
+  $("pImg").src = $("qrCanvas").toDataURL("image/png");
+  window.print();
+};
+
+/* ---------- Kết nối Apps Script ---------- */
+let master = "";
+try { master = sessionStorage.getItem(MASTER_KEY) || ""; } catch (e) {}
+
+async function api(params) {
+  const u = new URL(SCRIPT_URL);
+  Object.keys(params).forEach(k => u.searchParams.set(k, params[k]));
+  const res = await fetch(u.href);
+  try { return JSON.parse(await res.text()); }
+  catch (e) { throw new Error("Máy chủ trả về dữ liệu không hợp lệ. Kiểm tra Apps Script đã có action=create và đã triển khai phiên bản mới."); }
+}
+async function register(code, spw) {
+  const data = await api({ action: "create", s: code, pw: master, spw: spw });
+  if (data && data.code === "auth") { showLogin(data.message || "Phiên đăng nhập đã hết hạn."); throw new Error("auth"); }
+  if (!data || !data.ok) throw new Error((data && data.message) || "Không đăng ký được mã trên máy chủ.");
+}
+
+/* ---------- Đăng nhập quản trị ---------- */
+function showLogin(msg) {
+  master = ""; try { sessionStorage.removeItem(MASTER_KEY); } catch (e) {}
+  $("app").hidden = true; $("loginWrap").hidden = false; $("btnLogout").hidden = true;
+  $("loginErr").textContent = msg || ""; $("loginErr").hidden = !msg;
+  $("mpw").value = ""; $("btnLogin").disabled = false; $("btnLogin").textContent = "Đăng nhập"; $("mpw").focus();
+}
+function enterApp() {
+  $("loginWrap").hidden = true; $("app").hidden = false; $("btnLogout").hidden = false;
+  if (!$("spw").value) $("spw").value = randomSuffix(6);
+}
+async function doLogin() {
+  const v = $("mpw").value;
+  if (!v) { $("loginErr").textContent = "Vui lòng nhập mật khẩu."; $("loginErr").hidden = false; return; }
+  $("btnLogin").disabled = true; $("btnLogin").textContent = "Đang kiểm tra…"; $("loginErr").hidden = true;
+  try {
+    const data = await api({ action: "auth", pw: v });
+    if (data && data.ok) { master = v; try { sessionStorage.setItem(MASTER_KEY, v); } catch (e) {} enterApp(); }
+    else showLogin((data && data.message) || "Mật khẩu không đúng.");
+  } catch (e) {
+    showLogin("Không kết nối được máy chủ. Backend cần có action=auth và đã được triển khai phiên bản mới.");
+  }
+}
+$("btnLogin").onclick = doLogin;
+$("mpw").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("btnLogout").onclick = () => showLogin("");
+$("btnGenPw").onclick = () => { $("spw").value = randomSuffix(6); };
+
+/* ---------- Mật khẩu từng buổi ---------- */
+$("btnCopyPw").onclick = async () => {
+  if (!current || !current.spw) return;
+  try { await navigator.clipboard.writeText(current.spw); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = current.spw; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand("copy"); } catch (e2) {} ta.remove();
+  }
+  const b = $("btnCopyPw"), old = b.textContent; b.textContent = "Đã sao chép";
+  setTimeout(() => b.textContent = old, 1500);
+};
+$("btnNewPw").onclick = async () => {
+  if (!current) return;
+  const v = prompt("Mật khẩu mới cho buổi " + current.code + " (ít nhất 4 ký tự).\n- Để trống: tạo ngẫu nhiên\n- Nhập dấu - : bỏ mật khẩu riêng (chỉ mật khẩu quản trị xem được)", "");
+  if (v === null) return;
+  let spw = v.trim();
+  if (spw === "-") spw = ""; else if (!spw) spw = randomSuffix(6);
+  if (spw && spw.length < 4) { showErr("Mật khẩu cần ít nhất 4 ký tự."); return; }
+  showErr("");
+  try { await register(current.code, spw); }
+  catch (e) { if (e.message !== "auth") showErr(e.message || "Không kết nối được máy chủ."); return; }
+  const list = loadStore(), r = list.find(x => x.code === current.code);
+  if (r) { r.spw = spw; saveStore(list); }
+  showRecord(r || Object.assign({}, current, { spw }), "Đã cập nhật mật khẩu của buổi " + current.code + ".");
+};
+
+if (typeof qrcode === "undefined") showErr("Không tải được thư viện tạo mã QR. Kiểm tra kết nối mạng rồi tải lại trang.");
+renderHistory();
+if (master) enterApp(); else showLogin("");
+</script>
+</body>
+</html>
